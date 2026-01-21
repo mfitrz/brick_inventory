@@ -2,10 +2,16 @@ from sqlalchemy import create_engine, select, delete
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session
 from sqlalchemy.exc import IntegrityError
 from fastapi import FastAPI, HTTPException
+from dotenv import load_dotenv
+import os
+
+load_dotenv() # Load environment variables from .env file
 
 # Personal local host database url
-DATABASE_URL = ("postgresql://postgres:"
-                "Marcopolo1234!@localhost:5432/Legos")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not set")
 
 # Allows for mappings of Python inherint data types to SQL data types
 class Base(DeclarativeBase):
