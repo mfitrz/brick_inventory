@@ -1,52 +1,45 @@
-import { useEffect, useState, useRef } from "react";
-import { View, Text, Pressable, TextInput, Alert, ActivityIndicator } from "react-native";
-import { CameraView, useCameraPermissions } from "expo-camera";
-import * as Haptics from "expo-haptics";
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  Pressable,
+  TextInput,
+  Alert,
+  RefreshControl,
+  StyleSheet,
+  Animated,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Swipeable, GestureHandlerRootView } from "react-native-gesture-handler";
 
-interface ProductInfo {
-  title: string;
-  brand?: string;
-  barcode?: string;
+interface LegoSet {
+  set_number: number;
+  name: string;
 }
 
-export default function App() {
-  const [permission, requestPermission] = useCameraPermissions();
-
-  const [isScanArmed, setIsScanArmed] = useState(false);
-  const [lastScan, setLastScan] = useState<string | null>(null);
-  const [productInfo, setProductInfo] = useState<ProductInfo | null>(null);
-
-  const [showHint, setShowHint] = useState(false);
-  const [justScanned, setJustScanned] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
+export default function CollectionScreen() {
+  const [sets, setSets] = useState<LegoSet[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // API connection state
   const [apiUrl, setApiUrl] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
-  const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   useEffect(() => {
-    if (!permission?.granted) requestPermission();
     loadApiUrl();
-  }, [permission]);
-
-  useEffect(() => {
-    return () => {
-      if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
-    };
   }, []);
 
-  // Load saved API URL
+  // Load saved API URL and fetch sets
   const loadApiUrl = async () => {
     try {
       const saved = await AsyncStorage.getItem("apiUrl");
       if (saved) {
         setApiUrl(saved);
-        checkConnection(saved);
+        await fetchSets(saved);
       }
     } catch (error) {
       console.error("Failed to load API URL:", error);
@@ -58,14 +51,15 @@ export default function App() {
     try {
       await AsyncStorage.setItem("apiUrl", url);
       setApiUrl(url);
-      checkConnection(url);
+      await fetchSets(url);
+      setShowSettings(false);
     } catch (error) {
       console.error("Failed to save API URL:", error);
     }
   };
 
-  // Check if API is reachable
-  const checkConnection = async (url: string) => {
+  // Fetch all LEGO sets from the API
+  const fetchSets = async (url: string) => {
     if (!url) {
       setIsConnected(false);
       return;
@@ -78,183 +72,229 @@ export default function App() {
       });
 
       if (response.ok) {
+        const data = await response.json();
+        setSets(data.sets || []);
         setIsConnected(true);
-        Alert.alert("Connected", "Successfully connected to LEGO Inventory API");
       } else {
         setIsConnected(false);
-        Alert.alert("Connection Failed", "API returned an error");
+        Alert.alert("Connection Failed", "Could not fetch your collection");
       }
     } catch (error) {
+      console.error("Error fetching sets:", error);
       setIsConnected(false);
-      console.error("Connection error:", error);
-    }
-  };
-
-  // Look up product info from UPC database
-  const lookupProduct = async (barcode: string): Promise<ProductInfo | null> => {
-    try {
-      const response = await fetch("https://api.upcitemdb.com/prod/trial/lookup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          upc: barcode,
-        }),
-      });
-
-      if (!response.ok) {
-        console.error("UPC lookup failed:", response.status);
-        return null;
-      }
-
-      const data = await response.json();
-      
-      if (data.items && data.items.length > 0) {
-        const item = data.items[0];
-        return {
-          title: item.title || "Unknown Product",
-          brand: item.brand,
-          barcode: barcode,
-        };
-      }
-
-      return null;
-    } catch (error) {
-      console.error("Error looking up product:", error);
-      return null;
-    }
-  };
-
-  // Send LEGO set to the backend
-  const addLegoSet = async (setNumber: string, setName: string) => {
-    if (!apiUrl || !isConnected) {
-      Alert.alert("Not Connected", "Please configure API connection in settings");
-      return false;
-    }
-
-    try {
-      const response = await fetch(`${apiUrl}/sets`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          set_number: parseInt(setNumber),
-          set_name: setName,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        Alert.alert("Success", `Added LEGO set ${setNumber} to your collection!`);
-        return true;
-      } else if (response.status === 409) {
-        Alert.alert("Already in Collection", data.detail || "This set is already in your collection");
-        return false;
-      } else {
-        Alert.alert("Error", data.detail || "Failed to add set to collection");
-        return false;
-      }
-    } catch (error) {
-      console.error("Error adding LEGO set:", error);
       Alert.alert("Error", "Failed to connect to inventory API");
-      return false;
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
-  if (!permission) return <Text>Loading…</Text>;
-  if (!permission.granted) return <Text>Camera permission is required.</Text>;
-
-  const stopScan = () => {
-    if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
-    setIsScanArmed(false);
-    setShowHint(false);
+  // Refresh the collection
+  const onRefresh = () => {
+    setIsRefreshing(true);
+    fetchSets(apiUrl);
   };
 
-  const toggleScan = () => {
-    if (isScanArmed) {
-      stopScan();
+  // Delete a single set
+  const deleteSet = async (setNumber: number, setName: string) => {
+    if (!apiUrl) {
+      Alert.alert("Error", "No API connection");
       return;
     }
 
-    setIsScanArmed(true);
-    setShowHint(false);
+    Alert.alert(
+      "Delete Set",
+      `Are you sure you want to remove "${setName}" from your collection?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const response = await fetch(
+                `${apiUrl}/sets?set_number=${setNumber}`,
+                {
+                  method: "DELETE",
+                }
+              );
 
-    if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
-
-    const timer = setTimeout(() => {
-      setShowHint(true);
-    }, 5000);
-
-    scanTimerRef.current = timer;
+              if (response.ok) {
+                Alert.alert("Success", "Set removed from collection");
+                fetchSets(apiUrl); // Refresh the list
+              } else {
+                const data = await response.json();
+                Alert.alert("Error", data.detail || "Failed to delete set");
+              }
+            } catch (error) {
+              console.error("Error deleting set:", error);
+              Alert.alert("Error", "Failed to connect to API");
+            }
+          }
+        }
+      ]
+    );
   };
 
-  const handleBarcodeScanned = async ({ data }: { data: string }) => {
-    // Prevent duplicate scans
-    if (lastScan === data) return;
-
-    if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
-
-    // Haptic feedback
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-    // Visual feedback
-    setJustScanned(true);
-    setTimeout(() => setJustScanned(false), 300);
-
-    setLastScan(data);
-    setIsScanArmed(false);
-    setShowHint(false);
-    setIsLoading(true);
-    setProductInfo(null);
-
-    // Look up product info
-    const product = await lookupProduct(data);
-    setIsLoading(false);
-
-    if (product) {
-      setProductInfo(product);
-      
-      // Check if it's a LEGO product
-      if (product.brand?.toLowerCase().includes("lego") || product.title?.toLowerCase().includes("lego")) {
-        // Automatically try to add to inventory
-        await addLegoSet(data, product.title);
-      } else {
-        Alert.alert(
-          "Not a LEGO Set",
-          `Found: ${product.title}\n\nThis doesn't appear to be a LEGO product.`
-        );
-      }
-    } else {
-      Alert.alert("Product Not Found", "Could not find product information for this barcode.");
+  // Delete all sets
+  const deleteAllSets = async () => {
+    if (!apiUrl) {
+      Alert.alert("Error", "No API connection");
+      return;
     }
+
+    Alert.alert(
+      "Delete All Sets",
+      "Are you sure you want to delete your ENTIRE collection? This cannot be undone!",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete All",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const response = await fetch(`${apiUrl}/delete_sets`, {
+                method: "DELETE",
+              });
+
+              if (response.ok) {
+                Alert.alert("Success", "All sets deleted from collection");
+                fetchSets(apiUrl); // Refresh the list
+              } else {
+                const data = await response.json();
+                Alert.alert("Error", data.detail || "Failed to delete all sets");
+              }
+            } catch (error) {
+              console.error("Error deleting all sets:", error);
+              Alert.alert("Error", "Failed to connect to API");
+            }
+          }
+        }
+      ]
+    );
   };
+
+  // Render the delete action when swiping
+  const renderRightActions = (
+    _progress: Animated.AnimatedInterpolation<number>,
+    dragX: Animated.AnimatedInterpolation<number>,
+    item: LegoSet
+  ) => {
+    const trans = dragX.interpolate({
+      inputRange: [-80, 0],
+      outputRange: [0, 80],
+      extrapolate: 'clamp',
+    });
+
+    return (
+      <Animated.View
+        style={[
+          styles.deleteAction,
+          {
+            transform: [{ translateX: trans }],
+          },
+        ]}
+      >
+        <Pressable
+          style={styles.deleteActionButton}
+          onPress={() => deleteSet(item.set_number, item.name)}
+        >
+          <Text style={styles.deleteActionText}>Delete</Text>
+        </Pressable>
+      </Animated.View>
+    );
+  };
+
+  // Render each LEGO set item
+  const renderSet = ({ item }: { item: LegoSet }) => (
+    <Swipeable
+      renderRightActions={(progress, dragX) => renderRightActions(progress, dragX, item)}
+      overshootRight={false}
+    >
+      <View style={styles.setItem}>
+        <View style={styles.setInfo}>
+          <Text style={styles.setNumber}>#{item.set_number}</Text>
+          <Text style={styles.setName}>{item.name}</Text>
+        </View>
+      </View>
+    </Swipeable>
+  );
 
   return (
-    <View style={{ flex: 1 }}>
-      <CameraView
-        style={{ flex: 1 }}
-        barcodeScannerSettings={{
-          barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e", "code128", "code39"],
-        }}
-        onBarcodeScanned={isScanArmed ? handleBarcodeScanned : undefined}
-        onCameraReady={() => setCameraError(null)}
-        onMountError={(error) => setCameraError(error.message)}
-      />
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>My LEGO Collection</Text>
+          <Pressable onPress={() => setShowSettings(true)}>
+            <Text style={styles.settingsIcon}>⚙️</Text>
+          </Pressable>
+        </View>
+
+      {/* Connection status */}
+      <View style={styles.statusBar}>
+        <Text style={styles.statusText}>
+          {isConnected ? "🟢 Connected" : "🔴 Not Connected"}
+        </Text>
+        <Text style={styles.countText}>
+          {sets.length} {sets.length === 1 ? "set" : "sets"}
+        </Text>
+      </View>
+
+      {/* Collection list */}
+      {!apiUrl || !isConnected ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>No API Connection</Text>
+          <Text style={styles.emptyMessage}>
+            Please configure your API connection to view your collection.
+          </Text>
+          <Pressable style={styles.settingsButton} onPress={() => setShowSettings(true)}>
+            <Text style={styles.settingsButtonText}>Configure API</Text>
+          </Pressable>
+        </View>
+      ) : sets.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>No Sets Yet</Text>
+          <Text style={styles.emptyMessage}>
+            Start building your collection by scanning LEGO set barcodes!
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={sets}
+          renderItem={renderSet}
+          keyExtractor={(item) => item.set_number.toString()}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+          }
+        />
+      )}
+
+      {/* Add button */}
+      <Pressable
+        style={styles.addButton}
+        onPress={() => router.push("/scanner")}
+      >
+        <Text style={styles.addButtonText}>+ Add Set</Text>
+      </Pressable>
 
       {/* Settings Modal */}
       {showSettings && (
-        <View style={settingsStyle.overlay}>
-          <View style={settingsStyle.modal}>
-            <Text style={settingsStyle.title}>API Settings</Text>
-            
-            <Text style={settingsStyle.label}>
+        <View style={styles.settingsOverlay}>
+          <View style={styles.settingsModal}>
+            <Text style={styles.settingsTitle}>API Settings</Text>
+
+            <Text style={styles.label}>
               LEGO Inventory API URL (e.g., http://192.168.1.100:8000)
             </Text>
             <TextInput
-              style={settingsStyle.input}
+              style={styles.input}
               value={apiUrl}
               onChangeText={setApiUrl}
               placeholder="http://192.168.1.100:8000"
@@ -264,183 +304,214 @@ export default function App() {
               keyboardType="url"
             />
 
-            <Text style={settingsStyle.hint}>
+            <Text style={styles.hint}>
               💡 Find your computer's IP address:{"\n"}
               • Mac/Linux: Run `ifconfig` or `ip addr`{"\n"}
               • Windows: Run `ipconfig`{"\n"}
               • Look for IP starting with 192.168.x.x or 10.0.x.x
             </Text>
 
-            <View style={settingsStyle.status}>
-              <Text style={settingsStyle.statusText}>
-                Status: {isConnected ? "✅ Connected" : "❌ Not Connected"}
-              </Text>
-            </View>
+            {/* Delete all sets section */}
+            {sets.length > 0 && (
+              <View style={styles.dangerZone}>
+                <Text style={styles.dangerZoneTitle}>⚠️ Danger Zone</Text>
+                <Pressable
+                  style={styles.deleteAllButton}
+                  onPress={() => {
+                    setShowSettings(false);
+                    deleteAllSets();
+                  }}
+                >
+                  <Text style={styles.deleteAllButtonText}>Delete All Sets</Text>
+                </Pressable>
+              </View>
+            )}
 
-            <View style={settingsStyle.buttons}>
+            <View style={styles.modalButtons}>
               <Pressable
-                style={[settingsStyle.button, settingsStyle.testButton]}
-                onPress={() => checkConnection(apiUrl)}
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={() => saveApiUrl(apiUrl)}
               >
-                <Text style={settingsStyle.buttonText}>Test Connection</Text>
+                <Text style={styles.modalButtonText}>Save & Connect</Text>
               </Pressable>
 
               <Pressable
-                style={[settingsStyle.button, settingsStyle.saveButton]}
-                onPress={() => {
-                  saveApiUrl(apiUrl);
-                  setShowSettings(false);
-                }}
-              >
-                <Text style={settingsStyle.buttonText}>Save</Text>
-              </Pressable>
-
-              <Pressable
-                style={[settingsStyle.button, settingsStyle.cancelButton]}
+                style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => setShowSettings(false)}
               >
-                <Text style={settingsStyle.buttonText}>Cancel</Text>
+                <Text style={styles.modalButtonText}>Cancel</Text>
               </Pressable>
             </View>
           </View>
         </View>
       )}
-
-      {/* Connection status indicator */}
-      <View style={statusStyle.container}>
-        <Pressable onPress={() => setShowSettings(true)}>
-          <Text style={statusStyle.text}>
-            {isConnected ? "🟢 API Connected" : "🔴 API Offline"}
-          </Text>
-        </Pressable>
-      </View>
-
-      {/* Error message */}
-      {cameraError && (
-        <View style={errorStyle.container}>
-          <Text style={errorStyle.text}>Camera Error: {cameraError}</Text>
-        </View>
-      )}
-
-      {/* Overlay: crosshair with scan animation */}
-      <View pointerEvents="none" style={overlayStyle.container}>
-        <View
-          style={[
-            overlayStyle.crosshairBox,
-            justScanned && overlayStyle.crosshairScanned,
-          ]}
-        >
-          <View style={[overlayStyle.corner, overlayStyle.tl]} />
-          <View style={[overlayStyle.corner, overlayStyle.tr]} />
-          <View style={[overlayStyle.corner, overlayStyle.bl]} />
-          <View style={[overlayStyle.corner, overlayStyle.br]} />
-        </View>
-
-        {showHint && (
-          <View style={overlayStyle.hintContainer}>
-            <Text style={overlayStyle.hintText}>
-              If barcode is aligned but not scanning, try moving camera slightly closer or
-              farther.
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Scan button */}
-      <View style={scanButtonStyle.container}>
-        <Pressable
-          style={({ pressed }) => [
-            scanButtonStyle.button,
-            isScanArmed ? scanButtonStyle.armed : scanButtonStyle.idle,
-            pressed && { opacity: 0.85 },
-          ]}
-          onPress={toggleScan}
-        >
-          <Text style={scanButtonStyle.text}>{isScanArmed ? "Stop scanning" : "Scan"}</Text>
-        </Pressable>
-      </View>
-
-      {/* Bottom info bar */}
-      <View style={uiStyle.bottomBar}>
-        <View style={{ flex: 1 }}>
-          {isLoading ? (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <ActivityIndicator color="white" />
-              <Text style={uiStyle.label}>Looking up product...</Text>
-            </View>
-          ) : productInfo ? (
-            <>
-              <Text style={uiStyle.label}>Last scanned</Text>
-              <Text style={uiStyle.value}>{productInfo.title}</Text>
-              {productInfo.brand && (
-                <Text style={uiStyle.brand}>Brand: {productInfo.brand}</Text>
-              )}
-              {productInfo.barcode && (
-                <Text style={uiStyle.barcode}>Barcode: {productInfo.barcode}</Text>
-              )}
-            </>
-          ) : lastScan ? (
-            <>
-              <Text style={uiStyle.label}>Last scanned</Text>
-              <Text style={uiStyle.value}>{lastScan}</Text>
-              <Text style={uiStyle.subtext}>Product info not available</Text>
-            </>
-          ) : (
-            <>
-              <Text style={uiStyle.label}>Last scanned</Text>
-              <Text style={uiStyle.value}>None yet</Text>
-            </>
-          )}
-        </View>
-      </View>
-    </View>
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 
-const statusStyle = {
+const styles = StyleSheet.create({
   container: {
-    position: "absolute" as const,
-    top: 50,
-    left: 20,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    flex: 1,
+    backgroundColor: "#f5f5f5",
   },
-  text: {
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#333",
+  },
+  settingsIcon: {
+    fontSize: 24,
+  },
+  statusBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  statusText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  countText: {
+    fontSize: 13,
+    color: "#666",
+    fontWeight: "600",
+  },
+  listContent: {
+    padding: 16,
+  },
+  setItem: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  setInfo: {
+    flex: 1,
+  },
+  setNumber: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#007AFF",
+    marginBottom: 4,
+  },
+  setName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  deleteAction: {
+    backgroundColor: "#E53E3E",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  deleteActionButton: {
+    width: 80,
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  deleteActionText: {
     color: "white",
-    fontSize: 12,
-    fontWeight: "600" as const,
+    fontWeight: "600",
+    fontSize: 16,
   },
-};
-
-const settingsStyle = {
-  overlay: {
-    position: "absolute" as const,
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 40,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#333",
+    marginBottom: 8,
+  },
+  emptyMessage: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 24,
+  },
+  settingsButton: {
+    marginTop: 20,
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  settingsButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  addButton: {
+    position: "absolute",
+    bottom: 30,
+    right: 20,
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderRadius: 30,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  addButtonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  settingsOverlay: {
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.8)",
-    justifyContent: "center" as const,
-    alignItems: "center" as const,
-    zIndex: 1000,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  modal: {
+  settingsModal: {
     backgroundColor: "white",
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: 16,
+    padding: 24,
     width: "85%",
     maxWidth: 400,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: "700" as const,
-    marginBottom: 16,
+  settingsTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    marginBottom: 20,
+    color: "#333",
   },
   label: {
     fontSize: 14,
-    fontWeight: "600" as const,
+    fontWeight: "600",
     marginBottom: 8,
     color: "#333",
   },
@@ -456,34 +527,18 @@ const settingsStyle = {
     fontSize: 11,
     color: "#666",
     lineHeight: 16,
-    marginBottom: 16,
+    marginBottom: 20,
     backgroundColor: "#f5f5f5",
-    padding: 10,
-    borderRadius: 6,
-  },
-  status: {
-    padding: 10,
-    backgroundColor: "#f0f0f0",
-    borderRadius: 6,
-    marginBottom: 16,
-  },
-  statusText: {
-    fontSize: 13,
-    fontWeight: "600" as const,
-    textAlign: "center" as const,
-  },
-  buttons: {
-    flexDirection: "row" as const,
-    gap: 8,
-  },
-  button: {
-    flex: 1,
     padding: 12,
     borderRadius: 8,
-    alignItems: "center" as const,
   },
-  testButton: {
-    backgroundColor: "#007AFF",
+  modalButtons: {
+    gap: 12,
+  },
+  modalButton: {
+    padding: 14,
+    borderRadius: 8,
+    alignItems: "center",
   },
   saveButton: {
     backgroundColor: "#34C759",
@@ -491,147 +546,35 @@ const settingsStyle = {
   cancelButton: {
     backgroundColor: "#8E8E93",
   },
-  buttonText: {
+  modalButtonText: {
     color: "white",
-    fontWeight: "600" as const,
-    fontSize: 14,
+    fontWeight: "600",
+    fontSize: 16,
   },
-};
-
-const errorStyle = {
-  container: {
-    position: "absolute" as const,
-    top: 90,
-    left: 20,
-    right: 20,
-    backgroundColor: "rgba(200, 60, 60, 0.9)",
+  dangerZone: {
+    marginTop: 8,
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: "#FFF5F5",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#FED7D7",
+  },
+  dangerZoneTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#C53030",
+    marginBottom: 12,
+  },
+  deleteAllButton: {
+    backgroundColor: "#E53E3E",
     padding: 12,
     borderRadius: 8,
+    alignItems: "center",
   },
-  text: {
+  deleteAllButtonText: {
     color: "white",
+    fontWeight: "600",
     fontSize: 14,
-    textAlign: "center" as const,
   },
-};
-
-const overlayStyle = {
-  container: {
-    position: "absolute" as const,
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-
-  crosshairBox: {
-    position: "absolute" as const,
-    left: "50%",
-    top: "50%",
-    transform: [{ translateX: -120 }, { translateY: -60 }],
-    width: 240,
-    height: 120,
-    backgroundColor: "rgba(0,0,0,0.3)",
-    borderRadius: 8,
-  },
-
-  crosshairScanned: {
-    backgroundColor: "rgba(0,255,0,0.25)",
-  },
-
-  corner: {
-    position: "absolute" as const,
-    width: 22,
-    height: 22,
-    borderColor: "white",
-  },
-  tl: { top: 0, left: 0, borderTopWidth: 3, borderLeftWidth: 3 },
-  tr: { top: 0, right: 0, borderTopWidth: 3, borderRightWidth: 3 },
-  bl: { bottom: 0, left: 0, borderBottomWidth: 3, borderLeftWidth: 3 },
-  br: { bottom: 0, right: 0, borderBottomWidth: 3, borderRightWidth: 3 },
-
-  hintContainer: {
-    position: "absolute" as const,
-    left: "50%",
-    top: "50%",
-    transform: [{ translateX: -160 }, { translateY: -90 - 14 - 44 }],
-    width: 320,
-    paddingHorizontal: 18,
-  },
-  hintText: {
-    color: "white",
-    fontSize: 20,
-    fontWeight: "600" as const,
-    textAlign: "center" as const,
-    opacity: 0.9,
-    textShadowColor: "rgba(0,0,0,0.8)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-};
-
-const scanButtonStyle = {
-  container: {
-    position: "absolute" as const,
-    top: "62%",
-    alignSelf: "center" as const,
-  },
-  button: {
-    width: 220,
-    height: 62,
-    borderRadius: 18,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.35)",
-  },
-  idle: {
-    backgroundColor: "rgba(255,255,255,0.22)",
-  },
-  armed: {
-    backgroundColor: "rgba(200,60,60,0.7)",
-  },
-  text: {
-    color: "white",
-    fontSize: 20,
-    fontWeight: "700" as const,
-  },
-};
-
-const uiStyle = {
-  bottomBar: {
-    position: "absolute" as const,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    padding: 14,
-    flexDirection: "row" as const,
-    backgroundColor: "rgba(0,0,0,0.55)",
-  },
-  label: {
-    color: "rgba(255,255,255,0.8)",
-    fontSize: 12,
-  },
-  value: {
-    color: "white",
-    fontSize: 16,
-    marginTop: 2,
-    fontWeight: "600" as const,
-  },
-  brand: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 13,
-    marginTop: 2,
-  },
-  barcode: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 12,
-    marginTop: 2,
-  },
-  subtext: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 12,
-    marginTop: 2,
-    fontStyle: "italic" as const,
-  },
-};
+});
