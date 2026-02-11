@@ -414,7 +414,7 @@ const overlayStyle = {
   },
   lookupContainer: {
     position: "absolute" as const,
-    top: "52%",
+    top: "52%" as any,
     left: 0,
     right: 0,
     alignItems: "center" as const,
@@ -434,7 +434,7 @@ const overlayStyle = {
 const scanButtonStyle = {
   container: {
     position: "absolute" as const,
-    top: "62%",
+    top: "62%" as any,
     alignSelf: "center" as const,
   },
   button: {
