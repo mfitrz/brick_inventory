@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
   FlatList,
   Pressable,
-  TextInput,
   Alert,
   RefreshControl,
   StyleSheet,
@@ -12,8 +11,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Swipeable, GestureHandlerRootView } from "react-native-gesture-handler";
+import { supabase, API_URL } from "../lib/supabase";
 
 interface LegoSet {
   set_number: number;
@@ -23,107 +22,75 @@ interface LegoSet {
 export default function CollectionScreen() {
   const [sets, setSets] = useState<LegoSet[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // API connection state
-  const [apiUrl, setApiUrl] = useState("");
-  const [isConnected, setIsConnected] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
-    loadApiUrl();
+    fetchSets();
   }, []);
 
-  // Load saved API URL and fetch sets
-  const loadApiUrl = async () => {
-    try {
-      const saved = await AsyncStorage.getItem("apiUrl");
-      if (saved) {
-        setApiUrl(saved);
-        await fetchSets(saved);
-      }
-    } catch (error) {
-      console.error("Failed to load API URL:", error);
-    }
-  };
-
-  // Save API URL
-  const saveApiUrl = async (url: string) => {
-    try {
-      await AsyncStorage.setItem("apiUrl", url);
-      setApiUrl(url);
-      await fetchSets(url);
-      setShowSettings(false);
-    } catch (error) {
-      console.error("Failed to save API URL:", error);
-    }
+  // Get the current auth token
+  const getAuthHeaders = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    return {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    };
   };
 
   // Fetch all LEGO sets from the API
-  const fetchSets = async (url: string) => {
-    if (!url) {
-      setIsConnected(false);
-      return;
-    }
+  const fetchSets = async () => {
+    const headers = await getAuthHeaders();
+    if (!headers) return;
 
     try {
-      const response = await fetch(`${url}/sets`, {
+      const response = await fetch(`${API_URL}/sets`, {
         method: "GET",
-        headers: { "Content-Type": "application/json" },
+        headers,
       });
 
       if (response.ok) {
         const data = await response.json();
         setSets(data.sets || []);
-        setIsConnected(true);
-      } else {
-        setIsConnected(false);
-        Alert.alert("Connection Failed", "Could not fetch your collection");
+      } else if (response.status === 401) {
+        Alert.alert("Session Expired", "Please sign in again");
+        await supabase.auth.signOut();
       }
     } catch (error) {
       console.error("Error fetching sets:", error);
-      setIsConnected(false);
-      Alert.alert("Error", "Failed to connect to inventory API");
+      Alert.alert("Error", "Failed to connect to API");
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  // Refresh the collection
   const onRefresh = () => {
     setIsRefreshing(true);
-    fetchSets(apiUrl);
+    fetchSets();
   };
 
   // Delete a single set
   const deleteSet = async (setNumber: number, setName: string) => {
-    if (!apiUrl) {
-      Alert.alert("Error", "No API connection");
-      return;
-    }
-
     Alert.alert(
       "Delete Set",
       `Are you sure you want to remove "${setName}" from your collection?`,
       [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
+        { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
+            const headers = await getAuthHeaders();
+            if (!headers) return;
+
             try {
               const response = await fetch(
-                `${apiUrl}/sets?set_number=${setNumber}`,
-                {
-                  method: "DELETE",
-                }
+                `${API_URL}/sets?set_number=${setNumber}`,
+                { method: "DELETE", headers }
               );
 
               if (response.ok) {
-                Alert.alert("Success", "Set removed from collection");
-                fetchSets(apiUrl); // Refresh the list
+                fetchSets();
               } else {
                 const data = await response.json();
                 Alert.alert("Error", data.detail || "Failed to delete set");
@@ -132,39 +99,35 @@ export default function CollectionScreen() {
               console.error("Error deleting set:", error);
               Alert.alert("Error", "Failed to connect to API");
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
   // Delete all sets
   const deleteAllSets = async () => {
-    if (!apiUrl) {
-      Alert.alert("Error", "No API connection");
-      return;
-    }
-
     Alert.alert(
       "Delete All Sets",
       "Are you sure you want to delete your ENTIRE collection? This cannot be undone!",
       [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
+        { text: "Cancel", style: "cancel" },
         {
           text: "Delete All",
           style: "destructive",
           onPress: async () => {
+            const headers = await getAuthHeaders();
+            if (!headers) return;
+
             try {
-              const response = await fetch(`${apiUrl}/delete_sets`, {
+              const response = await fetch(`${API_URL}/delete_sets`, {
                 method: "DELETE",
+                headers,
               });
 
               if (response.ok) {
                 Alert.alert("Success", "All sets deleted from collection");
-                fetchSets(apiUrl); // Refresh the list
+                fetchSets();
               } else {
                 const data = await response.json();
                 Alert.alert("Error", data.detail || "Failed to delete all sets");
@@ -173,47 +136,59 @@ export default function CollectionScreen() {
               console.error("Error deleting all sets:", error);
               Alert.alert("Error", "Failed to connect to API");
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
-  // Render the delete action when swiping
-  const renderRightActions = (
-    _progress: Animated.AnimatedInterpolation<number>,
-    dragX: Animated.AnimatedInterpolation<number>,
-    item: LegoSet
-  ) => {
-    const trans = dragX.interpolate({
-      inputRange: [-80, 0],
-      outputRange: [0, 80],
-      extrapolate: 'clamp',
-    });
-
-    return (
-      <Animated.View
-        style={[
-          styles.deleteAction,
-          {
-            transform: [{ translateX: trans }],
-          },
-        ]}
-      >
-        <Pressable
-          style={styles.deleteActionButton}
-          onPress={() => deleteSet(item.set_number, item.name)}
-        >
-          <Text style={styles.deleteActionText}>Delete</Text>
-        </Pressable>
-      </Animated.View>
-    );
+  const handleSignOut = async () => {
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Sign Out",
+        style: "destructive",
+        onPress: async () => {
+          await supabase.auth.signOut();
+        },
+      },
+    ]);
   };
 
-  // Render each LEGO set item
+  // Render the delete action when swiping
+  const renderRightActions = useCallback(
+    (
+      _progress: Animated.AnimatedInterpolation<number>,
+      dragX: Animated.AnimatedInterpolation<number>,
+      item: LegoSet
+    ) => {
+      const trans = dragX.interpolate({
+        inputRange: [-80, 0],
+        outputRange: [0, 80],
+        extrapolate: "clamp",
+      });
+
+      return (
+        <Animated.View
+          style={[styles.deleteAction, { transform: [{ translateX: trans }] }]}
+        >
+          <Pressable
+            style={styles.deleteActionButton}
+            onPress={() => deleteSet(item.set_number, item.name)}
+          >
+            <Text style={styles.deleteActionText}>Delete</Text>
+          </Pressable>
+        </Animated.View>
+      );
+    },
+    []
+  );
+
   const renderSet = ({ item }: { item: LegoSet }) => (
     <Swipeable
-      renderRightActions={(progress, dragX) => renderRightActions(progress, dragX, item)}
+      renderRightActions={(progress, dragX) =>
+        renderRightActions(progress, dragX, item)
+      }
       overshootRight={false}
     >
       <View style={styles.setItem}>
@@ -236,115 +211,86 @@ export default function CollectionScreen() {
           </Pressable>
         </View>
 
-      {/* Connection status */}
-      <View style={styles.statusBar}>
-        <Text style={styles.statusText}>
-          {isConnected ? "🟢 Connected" : "🔴 Not Connected"}
-        </Text>
-        <Text style={styles.countText}>
-          {sets.length} {sets.length === 1 ? "set" : "sets"}
-        </Text>
-      </View>
-
-      {/* Collection list */}
-      {!apiUrl || !isConnected ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No API Connection</Text>
-          <Text style={styles.emptyMessage}>
-            Please configure your API connection to view your collection.
-          </Text>
-          <Pressable style={styles.settingsButton} onPress={() => setShowSettings(true)}>
-            <Text style={styles.settingsButtonText}>Configure API</Text>
-          </Pressable>
-        </View>
-      ) : sets.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No Sets Yet</Text>
-          <Text style={styles.emptyMessage}>
-            Start building your collection by scanning LEGO set barcodes!
+        {/* Status bar */}
+        <View style={styles.statusBar}>
+          <Text style={styles.countText}>
+            {sets.length} {sets.length === 1 ? "set" : "sets"}
           </Text>
         </View>
-      ) : (
-        <FlatList
-          data={sets}
-          renderItem={renderSet}
-          keyExtractor={(item) => item.set_number.toString()}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-          }
-        />
-      )}
 
-      {/* Add button */}
-      <Pressable
-        style={styles.addButton}
-        onPress={() => router.push("/scanner")}
-      >
-        <Text style={styles.addButtonText}>+ Add Set</Text>
-      </Pressable>
-
-      {/* Settings Modal */}
-      {showSettings && (
-        <View style={styles.settingsOverlay}>
-          <View style={styles.settingsModal}>
-            <Text style={styles.settingsTitle}>API Settings</Text>
-
-            <Text style={styles.label}>
-              LEGO Inventory API URL (e.g., http://192.168.1.100:8000)
+        {/* Collection list */}
+        {sets.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>No Sets Yet</Text>
+            <Text style={styles.emptyMessage}>
+              Start building your collection by scanning LEGO set barcodes!
             </Text>
-            <TextInput
-              style={styles.input}
-              value={apiUrl}
-              onChangeText={setApiUrl}
-              placeholder="http://192.168.1.100:8000"
-              placeholderTextColor="#999"
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-            />
+          </View>
+        ) : (
+          <FlatList
+            data={sets}
+            renderItem={renderSet}
+            keyExtractor={(item) => item.set_number.toString()}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+            }
+          />
+        )}
 
-            <Text style={styles.hint}>
-              💡 Find your computer's IP address:{"\n"}
-              • Mac/Linux: Run `ifconfig` or `ip addr`{"\n"}
-              • Windows: Run `ipconfig`{"\n"}
-              • Look for IP starting with 192.168.x.x or 10.0.x.x
-            </Text>
+        {/* Add button */}
+        <Pressable
+          style={styles.addButton}
+          onPress={() => router.push("/scanner")}
+        >
+          <Text style={styles.addButtonText}>+ Add Set</Text>
+        </Pressable>
 
-            {/* Delete all sets section */}
-            {sets.length > 0 && (
-              <View style={styles.dangerZone}>
-                <Text style={styles.dangerZoneTitle}>⚠️ Danger Zone</Text>
+        {/* Settings Modal */}
+        {showSettings && (
+          <View style={styles.settingsOverlay}>
+            <View style={styles.settingsModal}>
+              <Text style={styles.settingsTitle}>Settings</Text>
+
+              {/* Delete all sets section */}
+              {sets.length > 0 && (
+                <View style={styles.dangerZone}>
+                  <Text style={styles.dangerZoneTitle}>Danger Zone</Text>
+                  <Pressable
+                    style={styles.deleteAllButton}
+                    onPress={() => {
+                      setShowSettings(false);
+                      deleteAllSets();
+                    }}
+                  >
+                    <Text style={styles.deleteAllButtonText}>
+                      Delete All Sets
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
+
+              <View style={styles.modalButtons}>
                 <Pressable
-                  style={styles.deleteAllButton}
+                  style={[styles.modalButton, styles.signOutButton]}
                   onPress={() => {
                     setShowSettings(false);
-                    deleteAllSets();
+                    handleSignOut();
                   }}
                 >
-                  <Text style={styles.deleteAllButtonText}>Delete All Sets</Text>
+                  <Text style={styles.modalButtonText}>Sign Out</Text>
+                </Pressable>
+
+                <Pressable
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setShowSettings(false)}
+                >
+                  <Text style={styles.modalButtonText}>Close</Text>
                 </Pressable>
               </View>
-            )}
-
-            <View style={styles.modalButtons}>
-              <Pressable
-                style={[styles.modalButton, styles.saveButton]}
-                onPress={() => saveApiUrl(apiUrl)}
-              >
-                <Text style={styles.modalButtonText}>Save & Connect</Text>
-              </Pressable>
-
-              <Pressable
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setShowSettings(false)}
-              >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </Pressable>
             </View>
           </View>
-        </View>
-      )}
+        )}
       </SafeAreaView>
     </GestureHandlerRootView>
   );
@@ -374,17 +320,13 @@ const styles = StyleSheet.create({
   },
   statusBar: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 12,
     backgroundColor: "white",
     borderBottomWidth: 1,
     borderBottomColor: "#e0e0e0",
-  },
-  statusText: {
-    fontSize: 13,
-    fontWeight: "600",
   },
   countText: {
     fontSize: 13,
@@ -455,18 +397,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 24,
   },
-  settingsButton: {
-    marginTop: 20,
-    backgroundColor: "#007AFF",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  settingsButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
   addButton: {
     position: "absolute",
     bottom: 30,
@@ -509,29 +439,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: "#333",
   },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 8,
-    color: "#333",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  hint: {
-    fontSize: 11,
-    color: "#666",
-    lineHeight: 16,
-    marginBottom: 20,
-    backgroundColor: "#f5f5f5",
-    padding: 12,
-    borderRadius: 8,
-  },
   modalButtons: {
     gap: 12,
   },
@@ -540,8 +447,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
   },
-  saveButton: {
-    backgroundColor: "#34C759",
+  signOutButton: {
+    backgroundColor: "#E53E3E",
   },
   cancelButton: {
     backgroundColor: "#8E8E93",
@@ -552,7 +459,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   dangerZone: {
-    marginTop: 8,
     marginBottom: 20,
     padding: 16,
     backgroundColor: "#FFF5F5",

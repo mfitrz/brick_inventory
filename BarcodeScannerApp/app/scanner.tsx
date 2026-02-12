@@ -3,7 +3,7 @@ import { View, Text, Pressable, Alert, ActivityIndicator } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { supabase, API_URL } from "../lib/supabase";
 
 interface ProductInfo {
   title: string;
@@ -80,19 +80,22 @@ export default function ScannerScreen() {
   // Send LEGO set to the backend
   const addLegoSet = async (setNumber: string, setName: string) => {
     try {
-      const apiUrl = await AsyncStorage.getItem("apiUrl");
+      const { data: { session } } = await supabase.auth.getSession();
 
-      if (!apiUrl) {
-        Alert.alert("Not Connected", "Please configure API connection in settings from the home screen", [
+      if (!session) {
+        Alert.alert("Not Signed In", "Please sign in to add sets to your collection", [
           { text: "OK", onPress: () => setHideScanUI(false) },
         ]);
         return false;
       }
 
       const response = await fetch(
-        `${apiUrl}/sets?set_number=${encodeURIComponent(setNumber)}&set_name=${encodeURIComponent(setName)}`,
+        `${API_URL}/sets?set_number=${encodeURIComponent(setNumber)}&set_name=${encodeURIComponent(setName)}`,
         {
           method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
         },
       );
 
