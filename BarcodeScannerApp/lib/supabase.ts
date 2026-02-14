@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL = 'https://owffxalcdjmsukmeccid.supabase.co'
 const SUPABASE_ANON_KEY = process.env.SUPABASE_KEY || "sb_publishable_UWOWVPBxfTipZ3YzCenzkA_uy1_q_Nv";
 
-export const API_URL = "http://192.168.1.220:8000";
+export const API_URL = "https://dockerfastapilego-b6bwhpdrgahjggf0.centralus-01.azurewebsites.net/";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
