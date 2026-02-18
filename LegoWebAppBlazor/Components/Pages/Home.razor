@@ -1,0 +1,219 @@
+@page "/"
+@inject LegoApiClient Api
+@inject AuthStateService AuthState
+@inject NavigationManager Nav
+
+<PageTitle>My Collection</PageTitle>
+
+<h1 class="mb-4">My LEGO Collection</h1>
+
+<!-- Flash messages -->
+@if (_errorMessage is not null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        @_errorMessage
+        <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+    </div>
+}
+@if (_successMessage is not null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        @_successMessage
+        <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+    </div>
+}
+
+<!-- Add Set Form -->
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Add a Set</h5>
+        <EditForm Model="_addModel" OnValidSubmit="HandleAdd" FormName="addSet">
+            <DataAnnotationsValidator />
+            <div class="row g-2 align-items-end">
+                <div class="col-auto">
+                    <label class="form-label">Set Number</label>
+                    <InputNumber @bind-Value="_addModel.SetNumber" class="form-control" />
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">Set Name</label>
+                    <InputText @bind-Value="_addModel.SetName" class="form-control" />
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary" disabled="@_adding">
+                        @(_adding ? "Adding..." : "Add Set")
+                    </button>
+                </div>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+<!-- Sets Table -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">Your Sets (@_sets.Count)</h5>
+
+    @if (_sets.Any())
+    {
+        <button class="btn btn-outline-danger btn-sm" @onclick="HandleDeleteAll">Delete All</button>
+    }
+</div>
+
+@if (_loading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (_sets.Any())
+{
+    <table class="table table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Set #</th>
+                <th>Name</th>
+                <th style="width: 100px;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var set in _sets)
+            {
+                <tr>
+                    <td>@set.SetNumber</td>
+                    <td>@set.Name</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" @onclick="() => HandleDelete(set.SetNumber)">
+                            Remove
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <div class="text-muted text-center py-5">
+        <p>No sets in your collection yet. Add one above!</p>
+    </div>
+}
+
+@code {
+    private List<LegoSetDto> _sets = new List<LegoSetDto>();
+    private AddSetModel _addModel = new AddSetModel();
+    private string? _errorMessage;
+    private string? _successMessage;
+    private bool _loading = true;
+    private bool _adding;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState.IsLoggedIn() == false)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        await LoadSets();
+    }
+
+    private async Task LoadSets()
+    {
+        _loading = true;
+        try
+        {
+            _sets = await Api.GetSetsAsync(AuthState.GetJwt()!);
+        }
+        catch (HttpRequestException)
+        {
+            _errorMessage = "Could not load your collection. Try logging in again.";
+        }
+        _loading = false;
+    }
+
+    private async Task HandleAdd()
+    {
+        if (AuthState.IsLoggedIn() == false) { 
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        _adding = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        var (success, message) = await Api.AddSetAsync(AuthState.GetJwt()!, _addModel.SetNumber, _addModel.SetName);
+
+        if (success)
+        {
+            _successMessage = message;
+            _addModel = new AddSetModel(); // clear the form
+            await LoadSets();  // refresh the table
+        }
+        else
+        {
+            _errorMessage = message;
+        }
+
+        _adding = false;
+    }
+
+    private async Task HandleDelete(int setNumber)
+    {
+        if (AuthState.IsLoggedIn() == false) 
+        { 
+            Nav.NavigateTo(uri: "/login"); 
+            return; 
+        }
+
+        _errorMessage = null;
+        _successMessage = null;
+
+        var (success, message) = await Api.DeleteSetAsync(AuthState.GetJwt()!, setNumber);
+
+        if (success)
+        {
+            _successMessage = message;
+            _sets.RemoveAll(s => s.SetNumber == setNumber);
+        }
+        else
+        {
+            _errorMessage = message;
+        }
+    }
+
+    private async Task HandleDeleteAll()
+    {
+        if (AuthState.IsLoggedIn() == false)
+        { 
+            Nav.NavigateTo("/login"); 
+            return; 
+        }
+
+        _errorMessage = null;
+        _successMessage = null;
+
+        var (success, message) = await Api.DeleteAllSetsAsync(AuthState.GetJwt()!);
+
+        if (success)
+        {
+            _successMessage = message;
+            _sets.Clear();
+        }
+        else
+        {
+            _errorMessage = message;
+        }
+    }
+
+    // Inner class for the "Add Set" form binding
+    private class AddSetModel
+    {
+        [Required]
+        public int SetNumber { get; set; }
+
+        [Required]
+        public string SetName { get; set; } = "";
+    }
+}

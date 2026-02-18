@@ -1,0 +1,74 @@
+@inherits LayoutComponentBase
+@inject AuthStateService AuthState
+@inject NavigationManager Nav
+@implements IDisposable
+
+<!-- Navigation Bar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/">LEGO Collection</a>
+        <button class="navbar-toggler" type="button" @onclick="ToggleNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="@NavCssClass">
+            <ul class="navbar-nav ms-auto">
+                @if (AuthState.IsLoggedIn())
+                {
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">My Sets</NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <button class="btn btn-outline-light btn-sm ms-2" @onclick="Logout">Logout</button>
+                    </li>
+                }
+                else
+                {
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/login">Login</NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/signup">Signup</NavLink>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Content -->
+<div class="container mt-4">
+    @Body
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private bool _navOpen;
+
+    private string NavCssClass => _navOpen
+        ? "collapse navbar-collapse show"
+        : "collapse navbar-collapse";
+
+    private void ToggleNav() => _navOpen = !_navOpen;
+
+    private void Logout()
+    {
+        AuthState.Logout();
+        Nav.NavigateTo("/login");
+    }
+
+    protected override void OnInitialized()
+    {
+        // Re-render the navbar when login/logout happens
+        AuthState.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        AuthState.OnChange -= StateHasChanged;
+    }
+}

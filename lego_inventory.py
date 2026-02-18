@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import create_engine, select, delete, Uuid
+from sqlalchemy import create_engine, select, delete, Uuid, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session
 from sqlalchemy.exc import IntegrityError
 from fastapi import FastAPI, HTTPException, Depends
@@ -30,6 +30,7 @@ class Base(DeclarativeBase):
 
 class LegoSet(Base):
     __tablename__ = "lego_sets"
+    __table_args__ = (UniqueConstraint("user_id", "set_number"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[uuid.UUID] = mapped_column(Uuid)
@@ -81,7 +82,7 @@ def _verify_with_supabase_auth_server(token: str) -> uuid.UUID:
                 raise HTTPException(status_code=401, detail="Invalid token: no user ID")
             return uuid.UUID(user_id)
     except urlerror.HTTPError as e:
-        if e.code == 401:
+        if e.code in (401, 403):
             raise HTTPException(status_code=401, detail="Invalid or expired token")
         raise HTTPException(status_code=503, detail="Auth verification service unavailable")
     except (ValueError, json.JSONDecodeError, urlerror.URLError):

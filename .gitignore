@@ -2,3 +2,12 @@
 __pycache__/lego_inventory.cpython-313.pyc
 barcode_tests.py
 requirements.txt
+*.pyc
+.fake
+
+# .NET / Blazor
+**/bin/
+**/obj/
+**/Properties/launchSettings.json
+*.user
+.vs/
