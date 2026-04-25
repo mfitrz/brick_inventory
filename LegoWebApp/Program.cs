@@ -1,7 +1,13 @@
 using LegoWebApp.Services;
-using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var envPath = Path.Combine(builder.Environment.ContentRootPath, ".env");
+if (File.Exists(envPath))
+{
+    DotNetEnv.Env.Load(envPath);
+    builder.Configuration.AddEnvironmentVariables();
+}
 
 builder.Services.AddControllers().AddJsonOptions(opts =>
     opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase);
@@ -15,12 +21,8 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowAnyMethod()));
 
-var apiBaseUrl = builder.Configuration["LegoApi:BaseUrl"] ?? "";
 var supabaseUrl = builder.Configuration["Supabase:Url"] ?? "";
 var supabaseAnonKey = builder.Configuration["Supabase:AnonKey"] ?? "";
-
-builder.Services.AddHttpClient<LegoApiClient>(client =>
-    client.BaseAddress = new Uri(apiBaseUrl));
 
 builder.Services.AddHttpClient<SupabaseAuthService>(client =>
 {
@@ -28,18 +30,24 @@ builder.Services.AddHttpClient<SupabaseAuthService>(client =>
     client.DefaultRequestHeaders.Add("apikey", supabaseAnonKey);
 });
 
+builder.Services.AddHttpClient<RebrickableService>();
+builder.Services.AddSingleton<EbayTokenCache>();
+builder.Services.AddSingleton<EbayPriceCache>();
+builder.Services.AddHttpClient<EbayService>();
+builder.Services.AddHttpClient<ClaudePredictionService>();
+
+var supabaseServiceRoleKey = builder.Configuration["Supabase:ServiceRoleKey"] ?? "";
+builder.Services.AddHttpClient<SupabaseAdminService>(client =>
+{
+    if (!string.IsNullOrEmpty(supabaseUrl))
+        client.BaseAddress = new Uri(supabaseUrl);
+    client.DefaultRequestHeaders.Add("apikey", supabaseServiceRoleKey);
+    client.DefaultRequestHeaders.Authorization =
+        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", supabaseServiceRoleKey);
+});
+
 var app = builder.Build();
 
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHsts();
-    app.UseHttpsRedirection();
-
-    var spaPath = Path.Combine(app.Environment.ContentRootPath, "ClientApp", "dist");
-    var spaProvider = new PhysicalFileProvider(spaPath);
-    app.UseStaticFiles(new StaticFileOptions { FileProvider = spaProvider });
-    app.MapFallbackToFile("index.html", new StaticFileOptions { FileProvider = spaProvider });
-}
 
 app.UseCors();
 app.MapControllers();
