@@ -4,9 +4,17 @@ using LegoWebApp.Models;
 
 namespace LegoWebApp.Services;
 
-public class SupabaseAuthService(HttpClient http)
+public class SupabaseAuthService
 {
     private const string SupabaseUrl = "https://owffxalcdjmsukmeccid.supabase.co";
+    private const string SupabaseAnonKey = "sb_publishable_UWOWVPBxfTipZ3YzCenzkA_uy1_q_Nv";
+    private readonly HttpClient http;
+
+    public SupabaseAuthService(HttpClient http)
+    {
+        this.http = http;
+        http.DefaultRequestHeaders.TryAddWithoutValidation("apikey", SupabaseAnonKey);
+    }
 
     public async Task<AuthResult> LoginAsync(string email, string password)
     {
@@ -124,7 +132,9 @@ public class SupabaseAuthService(HttpClient http)
     private static string ExtractError(JsonElement json, string fallback)
     {
         if (json.TryGetProperty("error_description", out var d) && d.GetString() is string desc) return desc;
-        if (json.TryGetProperty("msg", out var m) && m.GetString() is string msg) return msg;
-        return fallback;
+        if (json.TryGetProperty("message", out var m) && m.GetString() is string message) return message;
+        if (json.TryGetProperty("msg", out var mg) && mg.GetString() is string msg) return msg;
+        if (json.TryGetProperty("error", out var e) && e.GetString() is string err) return err;
+        return $"{fallback}: {json.GetRawText()}";
     }
 }
