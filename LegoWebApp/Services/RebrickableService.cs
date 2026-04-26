@@ -49,21 +49,41 @@ public class RebrickableService(HttpClient http, IConfiguration config)
     public async Task<List<RebrickableSet>> SearchSetsAsync(string query)
     {
         var trimmed = query.Trim();
-        var urlBuilder = new System.Text.StringBuilder(
-            $"https://rebrickable.com/api/v3/lego/sets/?key={ApiKey}&page_size=8&ordering=-year&min_parts=10");
+        var tokens = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var numberTokens = tokens.Where(t => System.Text.RegularExpressions.Regex.IsMatch(t, @"^\d+$")).ToList();
+        var wordTokens = tokens.Where(t => !System.Text.RegularExpressions.Regex.IsMatch(t, @"^\d+$")).ToList();
 
-        // If the query is a 4-digit year, filter by year instead of text search
-        if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^\d{4}$") &&
-            int.TryParse(trimmed, out var yr) && yr >= 1950 && yr <= 2030)
+        // Pure 4-digit year
+        if (tokens.Length == 1 && numberTokens.Count == 1 &&
+            int.TryParse(numberTokens[0], out var yr) && yr >= 1950 && yr <= 2030)
         {
-            urlBuilder.Append($"&min_year={yr}&max_year={yr}");
-        }
-        else
-        {
-            urlBuilder.Append($"&search={Uri.EscapeDataString(trimmed)}");
+            return await FetchSets($"&min_year={yr}&max_year={yr}", null, null);
         }
 
-        var response = await http.GetAsync(urlBuilder.ToString());
+        // Mixed query: words + numbers — run text search and apply number filter on results
+        if (wordTokens.Count > 0 && numberTokens.Count > 0)
+        {
+            var searchText = string.Join(" ", wordTokens);
+            // Fetch more results so filtering has enough to work with
+            var all = await FetchSets($"&search={Uri.EscapeDataString(searchText)}", pageSize: 50, minParts: null);
+            return all
+                .Where(s => numberTokens.Any(n =>
+                    s.SetNum.Split('-')[0].StartsWith(n) ||
+                    s.SetNum.Split('-')[0].Contains(n) ||
+                    s.Year.ToString().StartsWith(n)))
+                .Take(8).ToList();
+        }
+
+        // Pure text or pure number (non-year)
+        return await FetchSets($"&search={Uri.EscapeDataString(trimmed)}", null, null);
+    }
+
+    private async Task<List<RebrickableSet>> FetchSets(string queryParams, int? pageSize, int? minParts)
+    {
+        var ps = pageSize ?? 8;
+        var mp = minParts ?? 10;
+        var url = $"https://rebrickable.com/api/v3/lego/sets/?key={ApiKey}&page_size={ps}&ordering=-year&min_parts={mp}{queryParams}";
+        var response = await http.GetAsync(url);
         if (!response.IsSuccessStatusCode) return [];
 
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -71,10 +91,7 @@ public class RebrickableService(HttpClient http, IConfiguration config)
         foreach (var item in json.GetProperty("results").EnumerateArray())
         {
             var setNum = item.GetProperty("set_num").GetString() ?? "";
-            // Skip sets whose number (before the dash) isn't a valid integer
-            var numPart = setNum.Split('-')[0];
-            if (!int.TryParse(numPart, out _)) continue;
-
+            if (!int.TryParse(setNum.Split('-')[0], out _)) continue;
             var name = item.GetProperty("name").GetString() ?? "";
             var year = item.GetProperty("year").GetInt32();
             var imgUrl = item.TryGetProperty("set_img_url", out var img) ? img.GetString() ?? "" : "";
