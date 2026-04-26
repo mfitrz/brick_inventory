@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(gh api *)",
+      "Bash(dotnet build *)",
+      "Bash(git -C \"C:/Users/exide/OneDrive/Desktop/lego/brick_inventory\" ls-files --error-unmatch \".env\")",
+      "Bash(git -C \"C:/Users/exide/OneDrive/Desktop/lego/brick_inventory\" ls-files --error-unmatch \"LegoWebApp/.env\")",
+      "Bash(git -C \"C:/Users/exide/OneDrive/Desktop/lego/brick_inventory\" ls-files --error-unmatch \"BarcodeScannerApp/.env\")",
+      "Bash(git -C \"C:/Users/exide/OneDrive/Desktop/lego/brick_inventory\" grep -rn --cached \"supabase.co\\\\|eyJ\\\\|sb_publishable\\\\|REBRICKABLE\\\\|ebay\\\\|anthropic\\\\|sk-ant\" -- \":\\(exclude\\)*.lock\")",
+      "Bash(git *)",
+      "Bash(xargs grep *)"
+    ]
+  }
+}
