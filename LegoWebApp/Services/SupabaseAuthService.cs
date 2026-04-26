@@ -6,9 +6,11 @@ namespace LegoWebApp.Services;
 
 public class SupabaseAuthService(HttpClient http)
 {
+    private const string SupabaseUrl = "https://owffxalcdjmsukmeccid.supabase.co";
+
     public async Task<AuthResult> LoginAsync(string email, string password)
     {
-        var response = await http.PostAsJsonAsync("/auth/v1/token?grant_type=password", new { email, password });
+        var response = await http.PostAsJsonAsync($"{SupabaseUrl}/auth/v1/token?grant_type=password", new { email, password });
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
 
         if (!response.IsSuccessStatusCode)
@@ -19,7 +21,7 @@ public class SupabaseAuthService(HttpClient http)
 
     public async Task<AuthResult> SignUpAsync(string email, string password)
     {
-        var response = await http.PostAsJsonAsync("/auth/v1/signup", new { email, password });
+        var response = await http.PostAsJsonAsync($"{SupabaseUrl}/auth/v1/signup", new { email, password });
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
 
         if (!response.IsSuccessStatusCode)
@@ -32,14 +34,14 @@ public class SupabaseAuthService(HttpClient http)
 
     public async Task<bool> SendPasswordResetAsync(string email)
     {
-        var response = await http.PostAsJsonAsync("/auth/v1/recover", new { email });
+        var response = await http.PostAsJsonAsync($"{SupabaseUrl}/auth/v1/recover", new { email });
         return response.IsSuccessStatusCode;
     }
 
     public async Task<List<LegoSetDto>> GetAllSetsAsync(string userJwt, string userId)
     {
         var request = new HttpRequestMessage(HttpMethod.Get,
-            $"/rest/v1/lego_sets?user_id=eq.{userId}&select=set_number,name,img_url,ebay_price,set_year");
+            $"{SupabaseUrl}/rest/v1/lego_sets?user_id=eq.{userId}&select=set_number,name,img_url,ebay_price,set_year");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userJwt);
         var response = await http.SendAsync(request);
         if (!response.IsSuccessStatusCode) return [];
@@ -64,7 +66,7 @@ public class SupabaseAuthService(HttpClient http)
     public async Task<(bool Success, string Message)> AddSetAsync(
         string userJwt, string userId, int setNumber, string name, string? imgUrl, decimal? ebayPrice = null, int? year = null)
     {
-        var insertReq = new HttpRequestMessage(HttpMethod.Post, "/rest/v1/lego_sets");
+        var insertReq = new HttpRequestMessage(HttpMethod.Post, $"{SupabaseUrl}/rest/v1/lego_sets");
         insertReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userJwt);
         insertReq.Content = JsonContent.Create(new { user_id = userId, set_number = setNumber, name, img_url = imgUrl, ebay_price = ebayPrice, set_year = year });
         insertReq.Headers.Add("Prefer", "return=minimal");
@@ -81,7 +83,7 @@ public class SupabaseAuthService(HttpClient http)
     public async Task<(bool Success, string Message)> DeleteSetAsync(string userJwt, string userId, int setNumber)
     {
         var request = new HttpRequestMessage(HttpMethod.Delete,
-            $"/rest/v1/lego_sets?user_id=eq.{userId}&set_number=eq.{setNumber}");
+            $"{SupabaseUrl}/rest/v1/lego_sets?user_id=eq.{userId}&set_number=eq.{setNumber}");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userJwt);
         request.Headers.Add("Prefer", "count=exact");
         var response = await http.SendAsync(request);
@@ -97,7 +99,7 @@ public class SupabaseAuthService(HttpClient http)
     public async Task<(bool Success, string Message)> DeleteAllSetsAsync(string userJwt, string userId)
     {
         var request = new HttpRequestMessage(HttpMethod.Delete,
-            $"/rest/v1/lego_sets?user_id=eq.{userId}");
+            $"{SupabaseUrl}/rest/v1/lego_sets?user_id=eq.{userId}");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userJwt);
         var response = await http.SendAsync(request);
         if (!response.IsSuccessStatusCode) return (false, "Failed to delete sets.");
@@ -106,7 +108,7 @@ public class SupabaseAuthService(HttpClient http)
 
     public async Task<(bool Success, string? Error)> UpdateEmailAsync(string userJwt, string newEmail)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Put, "/auth/v1/user");
+        using var request = new HttpRequestMessage(HttpMethod.Put, $"{SupabaseUrl}/auth/v1/user");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userJwt);
         request.Content = JsonContent.Create(new { email = newEmail });
 
