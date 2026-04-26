@@ -67,9 +67,4 @@ LegoScannerApp/
 
 ## Backend
 
-The mobile app connects to the BuildaVault .NET backend hosted on Railway:
-`https://brickinventory-production.up.railway.app`
-
-The backend handles authentication (via Supabase), set lookups (via Rebrickable), and eBay price estimates.
-
-The web version of BuildaVault is available at [buildavault.vercel.app](https://buildavault.vercel.app).
+The mobile app connects to a .NET backend that handles authentication, set lookups, and price estimates. A web version of BuildaVault is also available at [buildavault.dev](https://buildavault.dev).
