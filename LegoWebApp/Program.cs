@@ -26,7 +26,7 @@ var supabaseUrl = builder.Configuration["Supabase:Url"]
 var supabaseAnonKey = builder.Configuration["Supabase:AnonKey"]
     ?? Environment.GetEnvironmentVariable("Supabase__AnonKey")
     ?? Environment.GetEnvironmentVariable("SUPABASE_ANON_KEY")
-    ?? "sb_publishable_UWOWVPBxfTipZ3YzCenzkA_uy1_q_Nv";
+    ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93ZmZ4YWxjZGptc3VrbWVjY2lkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MzI3OTEsImV4cCI6MjA4NjQwODc5MX0.SHCaBwNodAeRmOQp4RM-vuLJr5GSj3OBfvg0awDDAN4";
 
 builder.Services.AddHttpClient<SupabaseAuthService>(client =>
 {
