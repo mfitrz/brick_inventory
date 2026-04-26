@@ -20,9 +20,13 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()));
 
 var supabaseUrl = builder.Configuration["Supabase:Url"]
-    ?? Environment.GetEnvironmentVariable("Supabase__Url") ?? "";
+    ?? Environment.GetEnvironmentVariable("Supabase__Url")
+    ?? Environment.GetEnvironmentVariable("SUPABASE_URL") ?? "";
 var supabaseAnonKey = builder.Configuration["Supabase:AnonKey"]
-    ?? Environment.GetEnvironmentVariable("Supabase__AnonKey") ?? "";
+    ?? Environment.GetEnvironmentVariable("Supabase__AnonKey")
+    ?? Environment.GetEnvironmentVariable("SUPABASE_ANON_KEY") ?? "";
+
+Console.WriteLine($"[Config] Supabase URL loaded: {!string.IsNullOrEmpty(supabaseUrl)}");
 
 builder.Services.AddHttpClient<SupabaseAuthService>(client =>
 {
@@ -38,7 +42,8 @@ builder.Services.AddHttpClient<EbayService>();
 builder.Services.AddHttpClient<ClaudePredictionService>();
 
 var supabaseServiceRoleKey = builder.Configuration["Supabase:ServiceRoleKey"]
-    ?? Environment.GetEnvironmentVariable("Supabase__ServiceRoleKey") ?? "";
+    ?? Environment.GetEnvironmentVariable("Supabase__ServiceRoleKey")
+    ?? Environment.GetEnvironmentVariable("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 builder.Services.AddHttpClient<SupabaseAdminService>(client =>
 {
     if (!string.IsNullOrEmpty(supabaseUrl))
