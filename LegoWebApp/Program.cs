@@ -26,7 +26,8 @@ var supabaseAnonKey = builder.Configuration["Supabase:AnonKey"] ?? "";
 
 builder.Services.AddHttpClient<SupabaseAuthService>(client =>
 {
-    client.BaseAddress = new Uri(supabaseUrl);
+    if (!string.IsNullOrEmpty(supabaseUrl))
+        client.BaseAddress = new Uri(supabaseUrl);
     client.DefaultRequestHeaders.Add("apikey", supabaseAnonKey);
 });
 
