@@ -7,13 +7,12 @@ namespace LegoWebApp.Services;
 public class SupabaseAuthService
 {
     private const string SupabaseUrl = "https://owffxalcdjmsukmeccid.supabase.co";
-    private const string SupabaseAnonKey = "sb_publishable_UWOWVPBxfTipZ3YzCenzkA_uy1_q_Nv";
+    private const string SupabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93ZmZ4YWxjZGptc3VrbWVjY2lkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MzI3OTEsImV4cCI6MjA4NjQwODc5MX0.SHCaBwNodAeRmOQp4RM-vuLJr5GSj3OBfvg0awDDAN4";
     private readonly HttpClient http;
 
     public SupabaseAuthService(HttpClient http)
     {
         this.http = http;
-        http.DefaultRequestHeaders.TryAddWithoutValidation("apikey", SupabaseAnonKey);
     }
 
     public async Task<AuthResult> LoginAsync(string email, string password)
