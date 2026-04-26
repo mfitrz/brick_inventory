@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020", "DOM"],
+    "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "skipLibCheck": true,
+    "jsx": "react-native",
+    "types": ["jest", "node", "@types/react", "@types/react-native"]
+  },
+  "include": ["tests/**/*", "__mocks__/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
