@@ -67,4 +67,6 @@ LegoScannerApp/
 
 ## Backend
 
-The mobile app connects to a .NET backend that handles authentication, set lookups, and price estimates. A web version of BuildaVault is also available at [buildavault.dev](https://buildavault.dev).
+The mobile app connects to a .NET backend that handles authentication, set lookups, and price estimates.
+
+A web version of BuildaVault is also available at [buildavault.dev](https://buildavault.dev).
