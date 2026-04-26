@@ -18,7 +18,5 @@ Live at [buildavault.dev](https://buildavault.dev).
 
 - **Mobile** — React Native, Expo, Expo Router
 - **Frontend** — React, Vite, Tailwind CSS
-- **Backend** — .NET, C#, hosted on Railway
-- **Database & Auth** — Supabase (PostgreSQL + Row Level Security)
-- **Set Data** — Rebrickable API
-- **Price Estimates** — eBay API
+- **Backend** — .NET, C#
+- **Database & Auth** — PostgreSQL
