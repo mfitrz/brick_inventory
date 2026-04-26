@@ -94,6 +94,7 @@ export default function MobileAppBanner() {
           <motion.button
             whileHover={{ scale: 1.03, y: -1 }}
             whileTap={{ scale: 0.97, y: 2 }}
+            onClick={() => window.open('https://github.com/mfitrz/brick_inventory/tree/main/LegoScannerApp', '_blank')}
             style={{
               width: '100%',
               background: '#cc1010',
