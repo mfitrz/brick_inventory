@@ -1,7 +1,14 @@
+import { useEffect } from 'react'
 import { motion } from 'framer-motion'
 
 export default function Alert({ type, message, onClose }) {
   const isError = type === 'error'
+
+  useEffect(() => {
+    const timer = setTimeout(onClose, isError ? 6000 : 4000)
+    return () => clearTimeout(timer)
+  }, [message, onClose, isError])
+
   return (
     <motion.div
       role="alert"
@@ -14,12 +21,12 @@ export default function Alert({ type, message, onClose }) {
         alignItems: 'center',
         justifyContent: 'space-between',
         borderRadius: '8px',
-        padding: '11px 16px',
+        padding: '12px 16px',
         marginBottom: '14px',
-        fontSize: '0.85rem',
-        background: isError ? 'rgba(201,31,55,0.1)' : 'rgba(34,197,94,0.08)',
-        border: `1px solid ${isError ? 'rgba(201,31,55,0.3)' : 'rgba(34,197,94,0.2)'}`,
-        color: isError ? '#f07070' : '#5dca82',
+        fontSize: '0.9rem',
+        background: isError ? 'var(--red-bg)' : 'var(--green-bg)',
+        border: `1px solid ${isError ? 'var(--red-border)' : 'var(--green-border)'}`,
+        color: isError ? 'var(--red)' : 'var(--green)',
       }}
     >
       <span>{message}</span>
@@ -33,7 +40,7 @@ export default function Alert({ type, message, onClose }) {
             color: 'inherit',
             cursor: 'pointer',
             marginLeft: '12px',
-            opacity: 0.6,
+            opacity: 0.5,
             fontSize: '1.1rem',
             lineHeight: 1,
             padding: '0 2px',

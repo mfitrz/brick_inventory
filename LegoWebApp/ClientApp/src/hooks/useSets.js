@@ -3,34 +3,41 @@ import { useAuth } from '../context/AuthContext'
 import { getSets, addSet, deleteSet, deleteAllSets } from '../services/api'
 
 export function useSets() {
-  const { jwt } = useAuth()
+  const { jwt, logout } = useAuth()
   const [sets, setSets] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!!jwt)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    if (jwt) load()
+    else setLoading(false)
+  }, [jwt])
 
   async function load() {
     setLoading(true)
     try {
       setSets(await getSets(jwt))
-    } catch {
-      setError('Failed to load your collection.')
+    } catch (err) {
+      if (err?.status === 401) {
+        logout()
+      } else {
+        setError('Failed to load your collection.')
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  async function add(setNumber, setName) {
-    const result = await addSet(jwt, setNumber, setName)
+  async function add(setNumber, setName, setImageURL, year) {
+    const result = await addSet(jwt, setNumber, setName, setImageURL, year)
     if (result.success) {
       setSuccess(result.message)
       await load()
     } else {
       setError(result.message)
     }
-    return result.success
+    return { success: result.success, ebayPrice: result.ebayPrice }
   }
 
   async function remove(setNumber) {

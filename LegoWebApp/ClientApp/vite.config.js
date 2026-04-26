@@ -12,5 +12,10 @@ export default defineConfig({
         changeOrigin: true,
       }
     }
-  }
+  },
+  // VITE_API_BASE_URL is set on Vercel to point to the Railway backend.
+  // In dev the proxy above handles /api, so this env var is not needed locally.
+  define: {
+    __API_BASE__: JSON.stringify(process.env.VITE_API_BASE_URL ?? ''),
+  },
 })

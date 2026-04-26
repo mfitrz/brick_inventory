@@ -1,0 +1,6 @@
+bin/
+obj/
+ClientApp/node_modules/
+ClientApp/dist/
+.env
+*.user

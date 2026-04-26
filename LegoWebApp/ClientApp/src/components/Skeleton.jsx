@@ -1,30 +1,26 @@
-function Bone({ className = '', style = {} }) {
+function Bone({ style = {} }) {
   return (
     <div
-      className={`animate-pulse ${className}`}
-      style={{ background: '#242424', borderRadius: '6px', ...style }}
+      className="animate-pulse"
+      style={{ background: '#e8e3db', borderRadius: '6px', ...style }}
     />
   )
 }
 
 export function HomePageSkeleton() {
   return (
-    <div style={{ maxWidth: '960px', margin: '0 auto', padding: '32px 20px' }}>
-      <Bone style={{ height: '44px', width: '220px', marginBottom: '32px', borderRadius: '4px' }} />
+    <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '56px 40px' }}>
+      <Bone style={{ height: '52px', width: '260px', marginBottom: '36px', borderRadius: '6px' }} />
 
-      <div style={{ background: '#161616', border: '1px solid #272727', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
-        <Bone style={{ height: '10px', width: '70px', marginBottom: '14px' }} />
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <Bone style={{ height: '40px', width: '150px', flexShrink: 0 }} />
-          <Bone style={{ height: '40px', flex: 1 }} />
-          <Bone style={{ height: '40px', width: '80px', flexShrink: 0 }} />
-        </div>
+      <div style={{ background: '#fff', border: '1px solid #e5e0d8', borderRadius: '16px', padding: '32px', marginBottom: '20px', boxShadow: '0 1px 3px rgba(24,24,27,0.07)' }}>
+        <Bone style={{ height: '10px', width: '80px', marginBottom: '18px' }} />
+        <Bone style={{ height: '50px' }} />
       </div>
 
-      <div style={{ background: '#161616', border: '1px solid #272727', borderRadius: '12px', overflow: 'hidden' }}>
-        <div style={{ borderBottom: '1px solid #272727', padding: '12px 20px', display: 'flex', gap: '40px' }}>
-          <Bone style={{ height: '10px', width: '40px' }} />
-          <Bone style={{ height: '10px', width: '80px' }} />
+      <div style={{ background: '#fff', border: '1px solid #e5e0d8', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(24,24,27,0.07)' }}>
+        <div style={{ borderBottom: '1px solid #e5e0d8', padding: '16px 28px', display: 'flex', gap: '60px' }}>
+          <Bone style={{ height: '10px', width: '44px' }} />
+          <Bone style={{ height: '10px', width: '88px' }} />
         </div>
         <TableRowsSkeleton rows={5} />
       </div>
@@ -36,19 +32,22 @@ export function TableRowsSkeleton({ rows = 5 }) {
   return (
     <tbody>
       {Array.from({ length: rows }, (_, i) => (
-        <tr key={i} style={{ borderBottom: '1px solid #1e1e1e' }}>
-          <td style={{ padding: '14px 20px' }}>
-            <Bone style={{ height: '14px', width: '56px', animationDelay: `${i * 50}ms` }} />
+        <tr key={i} style={{ borderBottom: '1px solid #ede9e3' }}>
+          <td style={{ padding: '18px 28px' }}>
+            <Bone style={{ height: '14px', width: '60px', animationDelay: `${i * 50}ms` }} />
           </td>
-          <td style={{ padding: '14px 20px' }}>
+          <td style={{ padding: '18px 28px' }}>
             <Bone style={{
               height: '14px',
-              width: `${[120, 160, 100, 145, 175][i % 5]}px`,
+              width: `${[130, 170, 110, 155, 185][i % 5]}px`,
               animationDelay: `${i * 50}ms`,
             }} />
           </td>
-          <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-            <Bone style={{ height: '10px', width: '44px', marginLeft: 'auto', animationDelay: `${i * 50}ms` }} />
+          <td style={{ padding: '10px 16px', width: '80px' }}>
+            <Bone style={{ height: '56px', width: '56px', borderRadius: '8px', margin: '0 auto', animationDelay: `${i * 50}ms` }} />
+          </td>
+          <td style={{ padding: '18px 28px', textAlign: 'right' }}>
+            <Bone style={{ height: '10px', width: '48px', marginLeft: 'auto', animationDelay: `${i * 50}ms` }} />
           </td>
         </tr>
       ))}
@@ -58,23 +57,23 @@ export function TableRowsSkeleton({ rows = 5 }) {
 
 export function AuthPageSkeleton() {
   return (
-    <div style={{ minHeight: 'calc(100vh - 56px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 20px' }}>
-      <div style={{ width: '100%', maxWidth: '380px' }}>
+    <div style={{ minHeight: 'calc(100vh - 72px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 20px' }}>
+      <div style={{ width: '100%', maxWidth: '400px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', marginBottom: '32px' }}>
           <Bone style={{ height: '56px', width: '56px', borderRadius: '50%' }} />
-          <Bone style={{ height: '40px', width: '180px', borderRadius: '4px' }} />
-          <Bone style={{ height: '14px', width: '220px' }} />
+          <Bone style={{ height: '44px', width: '200px', borderRadius: '6px' }} />
+          <Bone style={{ height: '14px', width: '240px' }} />
         </div>
-        <div style={{ background: '#161616', border: '1px solid #272727', borderRadius: '14px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <Bone style={{ height: '10px', width: '40px' }} />
-            <Bone style={{ height: '40px' }} />
+        <div style={{ background: '#fff', border: '1px solid #e5e0d8', borderRadius: '16px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+            <Bone style={{ height: '10px', width: '44px' }} />
+            <Bone style={{ height: '48px' }} />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <Bone style={{ height: '10px', width: '56px' }} />
-            <Bone style={{ height: '40px' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+            <Bone style={{ height: '10px', width: '60px' }} />
+            <Bone style={{ height: '48px' }} />
           </div>
-          <Bone style={{ height: '44px' }} />
+          <Bone style={{ height: '48px' }} />
         </div>
       </div>
     </div>

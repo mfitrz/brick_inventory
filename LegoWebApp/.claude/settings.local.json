@@ -1,7 +1,21 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "WebSearch",
+      "WebFetch(domain:rebrickable.com)",
+      "WebFetch(domain:brickset.com)",
+      "WebFetch(domain:www.brickowl.com)",
+      "WebFetch(domain:www.bricklink.com)",
+      "WebFetch(domain:developer.ebay.com)",
+      "Bash(dotnet build *)",
+      "WebFetch(domain:brickowl.com)",
+      "WebFetch(domain:forum.brickowl.com)",
+      "WebFetch(domain:api.brickowl.com)",
+      "Bash(node *)",
+      "Bash(npx vite *)",
+      "Bash(ipconfig)",
+      "Bash(npx expo *)"
     ]
   }
 }
