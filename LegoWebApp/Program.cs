@@ -21,12 +21,12 @@ builder.Services.AddCors(options =>
 
 var supabaseUrl = builder.Configuration["Supabase:Url"]
     ?? Environment.GetEnvironmentVariable("Supabase__Url")
-    ?? Environment.GetEnvironmentVariable("SUPABASE_URL") ?? "";
+    ?? Environment.GetEnvironmentVariable("SUPABASE_URL")
+    ?? "https://owffxalcdjmsukmeccid.supabase.co";
 var supabaseAnonKey = builder.Configuration["Supabase:AnonKey"]
     ?? Environment.GetEnvironmentVariable("Supabase__AnonKey")
-    ?? Environment.GetEnvironmentVariable("SUPABASE_ANON_KEY") ?? "";
-
-Console.WriteLine($"[Config] Supabase URL loaded: {!string.IsNullOrEmpty(supabaseUrl)}");
+    ?? Environment.GetEnvironmentVariable("SUPABASE_ANON_KEY")
+    ?? "sb_publishable_UWOWVPBxfTipZ3YzCenzkA_uy1_q_Nv";
 
 builder.Services.AddHttpClient<SupabaseAuthService>(client =>
 {
