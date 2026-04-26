@@ -4,10 +4,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 var envPath = Path.Combine(builder.Environment.ContentRootPath, ".env");
 if (File.Exists(envPath))
-{
     DotNetEnv.Env.Load(envPath);
-    builder.Configuration.AddEnvironmentVariables();
-}
+builder.Configuration.AddEnvironmentVariables();
 
 builder.Services.AddControllers().AddJsonOptions(opts =>
     opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase);
@@ -21,8 +19,10 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowAnyMethod()));
 
-var supabaseUrl = builder.Configuration["Supabase:Url"] ?? "";
-var supabaseAnonKey = builder.Configuration["Supabase:AnonKey"] ?? "";
+var supabaseUrl = builder.Configuration["Supabase:Url"]
+    ?? Environment.GetEnvironmentVariable("Supabase__Url") ?? "";
+var supabaseAnonKey = builder.Configuration["Supabase:AnonKey"]
+    ?? Environment.GetEnvironmentVariable("Supabase__AnonKey") ?? "";
 
 builder.Services.AddHttpClient<SupabaseAuthService>(client =>
 {
@@ -37,7 +37,8 @@ builder.Services.AddSingleton<EbayPriceCache>();
 builder.Services.AddHttpClient<EbayService>();
 builder.Services.AddHttpClient<ClaudePredictionService>();
 
-var supabaseServiceRoleKey = builder.Configuration["Supabase:ServiceRoleKey"] ?? "";
+var supabaseServiceRoleKey = builder.Configuration["Supabase:ServiceRoleKey"]
+    ?? Environment.GetEnvironmentVariable("Supabase__ServiceRoleKey") ?? "";
 builder.Services.AddHttpClient<SupabaseAdminService>(client =>
 {
     if (!string.IsNullOrEmpty(supabaseUrl))
