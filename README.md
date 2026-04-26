@@ -1,34 +1,24 @@
-# Barcode Scanner App (Phone Setup)
+# BuildaVault
 
-This project uses an Expo React Native app in `BarcodeScannerApp`.  
-The API is already hosted on Azure, so you only need to run the mobile app locally.
+A full-stack LEGO set inventory system. Scan barcodes with your phone to instantly look up sets, track your collection, and view estimated resale prices — across a mobile app and a web app.
 
-## Prerequisites
+## Projects
 
-- Node.js 18+
-- npm
-- Expo Go app on your phone (iOS/Android)
-- Phone and computer on the same Wi-Fi network
+### LegoScannerApp — Mobile App
+React Native app built with Expo. Scan any LEGO set barcode with your phone camera to look it up and add it to your vault. Runs on iOS and Android.
 
-## 2. Start the App
+See [`LegoScannerApp/README.md`](LegoScannerApp/README.md) for setup and installation instructions.
 
-```powershell
-cd BarcodeScannerApp
-npm install
-npx expo start
-```
+### LegoWebApp — Web App
+Full-stack web application with a React frontend and a .NET backend. Manage your LEGO set collection from a browser, search sets by name or number, and view AI-powered vault predictions.
 
-## 3. Open on Your Phone
+Live at [buildavault.dev](https://buildavault.dev).
 
-1. Open Expo Go on your phone.
-2. Scan the QR code shown by Expo in the terminal/browser.
-3. Sign in or sign up in the app.
-4. Allow camera access when prompted.
-5. Tap `+ Add Set` and scan a barcode.
+## Tech Stack
 
-## Troubleshooting
-
-- If your phone cannot connect, run:
-  - `npx expo start --tunnel`
-- If bundling is stale, clear cache:
-  - `npx expo start -c`
+- **Mobile** — React Native, Expo, Expo Router
+- **Frontend** — React, Vite, Tailwind CSS
+- **Backend** — .NET, C#, hosted on Railway
+- **Database & Auth** — Supabase (PostgreSQL + Row Level Security)
+- **Set Data** — Rebrickable API
+- **Price Estimates** — eBay API
