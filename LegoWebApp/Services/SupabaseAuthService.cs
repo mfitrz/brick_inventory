@@ -13,6 +13,8 @@ public class SupabaseAuthService
     public SupabaseAuthService(HttpClient http)
     {
         this.http = http;
+        http.DefaultRequestHeaders.Remove("apikey");
+        http.DefaultRequestHeaders.Add("apikey", SupabaseAnonKey);
     }
 
     public async Task<AuthResult> LoginAsync(string email, string password)
