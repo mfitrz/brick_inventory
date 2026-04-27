@@ -2,6 +2,15 @@
 
 BuildaVault is a mobile app for tracking your LEGO set collection. Scan barcodes to instantly look up sets, view estimated resale prices, and manage your vault on the go.
 
+## Screenshots
+
+<p align="center">
+  <img src="../screenshots/vault.png" width="23%" />
+  <img src="../screenshots/scanner.png" width="23%" />
+  <img src="../screenshots/not-lego.png" width="23%" />
+  <img src="../screenshots/scan-success.png" width="23%" />
+</p>
+
 ## Features
 
 - **Barcode Scanner** — point your camera at a LEGO set box to look it up instantly

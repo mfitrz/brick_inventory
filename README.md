@@ -12,6 +12,13 @@ Live at [buildavault.dev](https://buildavault.dev).
 ### LegoScannerApp — Mobile App
 React Native app built with Expo. Scan any LEGO set barcode with your phone camera to look it up and add it to your vault. Runs on iOS and Android.
 
+<p align="center">
+  <img src="screenshots/vault.png" width="23%" />
+  <img src="screenshots/scanner.png" width="23%" />
+  <img src="screenshots/not-lego.png" width="23%" />
+  <img src="screenshots/scan-success.png" width="23%" />
+</p>
+
 See [`LegoScannerApp/README.md`](LegoScannerApp/README.md) for setup and installation instructions.
 
 ## Tech Stack
