@@ -20,3 +20,13 @@ See [`LegoScannerApp/README.md`](LegoScannerApp/README.md) for setup and install
 - **Frontend** — React, Vite, Tailwind CSS
 - **Backend** — .NET, C#
 - **Database & Auth** — PostgreSQL
+
+## Previous Versions
+
+Earlier iterations of BuildaVault were built to explore different frameworks before settling on the current stack.
+
+### LegoWebAppBlazor — Blazor Web App
+An earlier version of the web app built with **Blazor** and **.NET 10**. Served as the original prototype before migrating to a React + Vite frontend.
+
+### BarcodeScannerApp — Original Mobile App
+The first version of the mobile barcode scanner, also built with **Expo** and **React Native**. Replaced by LegoScannerApp with an improved UI, Expo Router navigation, and deeper vault integration.
