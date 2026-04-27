@@ -25,6 +25,8 @@ See [`LegoScannerApp/README.md`](LegoScannerApp/README.md) for setup and install
 
 Earlier iterations of BuildaVault were built to explore different frameworks before settling on the current stack.
 
+Both previous versions connected to a **FastAPI** backend hosted on **Azure**.
+
 ### LegoWebAppBlazor — Blazor Web App
 An earlier version of the web app built with **Blazor** and **.NET 10**. Served as the original prototype before migrating to a React + Vite frontend.
 
